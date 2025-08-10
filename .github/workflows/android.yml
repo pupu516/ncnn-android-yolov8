@@ -1,0 +1,43 @@
+name: Build APK (NCNN + OpenCV-mobile)
+on: [workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v3
+
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: |-
+            platforms;android-34
+            build-tools;34.0.0
+            platform-tools
+
+      - name: Prepare native libs (download prebuilt ncnn & opencv-mobile)
+        run: |
+          mkdir -p app/src/main/jni
+          NCNN_TAG=20250503
+          NCNN_ZIP=ncnn-${NCNN_TAG}-android-vulkan.zip
+          curl -L "https://github.com/Tencent/ncnn/releases/download/${NCNN_TAG}/${NCNN_ZIP}" -o ncnn.zip
+          OPENCV_TAG=v34
+          OPENCV_ZIP=opencv-mobile-4.12.0-android.zip
+          curl -L "https://github.com/nihui/opencv-mobile/releases/download/${OPENCV_TAG}/${OPENCV_ZIP}" -o opencv-mobile.zip
+          unzip -q ncnn.zip -d app/src/main/jni
+          unzip -q opencv-mobile.zip -d app/src/main/jni
+
+      - name: Build
+        run: ./gradlew assembleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: app/build/outputs/apk/release/*.apk
